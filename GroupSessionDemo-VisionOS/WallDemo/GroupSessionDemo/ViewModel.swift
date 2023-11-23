@@ -83,7 +83,7 @@ extension ViewModel {
         
         //TEST: do we need to configure a local entity for this newly added object, or will it get configured same as remote objects do...
         
-        // configure entity for local player only who added the object
+        // Configure entity for local player only who added the object
         configureCurrentPlayerRootWithData(data: data)
     }
     

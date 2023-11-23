@@ -81,7 +81,7 @@ struct ContentView: View {
         .onChange(of: selectedItem) { _, newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                    // User has selected a photo item we have loaded the data,
+                    // User has selected a photo item and we have loaded the data,
                     // need to add it to the GroupSession Journal
                     viewModel.userDidSelectPhoto(data: data)
                 }

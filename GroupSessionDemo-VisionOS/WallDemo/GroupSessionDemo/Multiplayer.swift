@@ -12,14 +12,14 @@ import Spatial
 import SwiftUI
 @preconcurrency import GroupActivities
 
-/// Starts a group activity.
+/// Starts the GroupSession activity for the app
 func startSession() async throws {
     let activity = GroupSessionDemoActivity()
     let activationSuccess = try await activity.activate()
     print("Group Activities session activation: ", activationSuccess)
 }
 
-/// Metadata about the Happy Beam group activity.
+/// Metadata about the GroupActivity
 struct GroupSessionDemoActivity: GroupActivity {
     var metadata: GroupActivityMetadata {
         var data = GroupActivityMetadata()
@@ -60,6 +60,8 @@ class DemoSessionInfo: ObservableObject {
     var reliableMessenger: GroupSessionMessenger?
     var journal: GroupSessionJournal?
 }
+
+// MARK: - Multiplayer - Basic Session
 
 struct Multiplayer {
     
@@ -109,7 +111,7 @@ struct Multiplayer {
             
             Player.local = gameModel.players.first(where: { $0.name == newSession.localParticipant.id.asPlayerName })
             
-            // Add initial objectRoot for existing players who aren't the `local` player.
+            // *Session Handling: Add initial objectRoot for existing players who aren't the `local` player.
             gameModel.players.filter { $0.name != Player.local!.name }.forEach { player in
                 Task {
                     let newEntity = await initialObject(for: player)
@@ -118,7 +120,7 @@ struct Multiplayer {
                 }
             }
             
-            // Add objectRoot when new player joins
+            // *Session Handling: Add objectRoot when new player joins
             Task {
                 for try await updatedPlayerList in newSession.$activeParticipants.values {
                     for participant in updatedPlayerList {
@@ -137,14 +139,14 @@ struct Multiplayer {
                 }
             }
             
-            // Handle receiving attachments / files from the GroupSession Journal
+            // *Session Handling: Handle receiving attachments / files from the GroupSession Journal
             Task {
                 for await images in journal.attachments {
                     await handleReceiveJournal(images, viewModel: viewModel)
                 }
             }
             
-            // Publish new session to the ViewModel
+            // *Session Handling: Publish new session to the ViewModel
             viewModel.actionSubject.send(.receivedSession(session))
         }
     }
