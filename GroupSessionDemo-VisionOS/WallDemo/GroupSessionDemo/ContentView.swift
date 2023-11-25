@@ -29,6 +29,7 @@ struct ContentView: View {
                 VStack {
                     Button {
                         viewModel.resetSession()
+                        gameModel.reset()
                     } label: {
                         Text("Leave session").padding()
                     }.padding()
