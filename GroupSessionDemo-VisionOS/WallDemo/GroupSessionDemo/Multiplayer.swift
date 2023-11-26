@@ -120,13 +120,18 @@ struct Multiplayer {
                 }
             }
             
+            
             // *Session Handling: Add objectRoot when new player joins
             Task {
                 for try await updatedPlayerList in newSession.$activeParticipants.values {
-                    for participant in updatedPlayerList {
+                    
+                    for participant in updatedPlayerList
+                    {
                         Player.local = gameModel.players.first(where: { $0.name == newSession.localParticipant.id.asPlayerName })
                         let potentialNewPlayer = Player(name: String(participant.id.asPlayerName), score: 0, color: .random())
-                        if !gameModel.players.contains(where: { $0.name == potentialNewPlayer.name }) {
+                        
+                        if !gameModel.players.contains(where: { $0.name == potentialNewPlayer.name })
+                        {
                             gameModel.players.append(potentialNewPlayer)
                             
                             Task {
@@ -140,11 +145,12 @@ struct Multiplayer {
             }
             
             // *Session Handling: Handle receiving attachments / files from the GroupSession Journal
-            Task {
+            let task = Task {
                 for await images in journal.attachments {
                     await handleReceiveJournal(images, viewModel: viewModel)
                 }
             }
+            viewModel.tasks.insert(task)
             
             // *Session Handling: Publish new session to the ViewModel
             viewModel.actionSubject.send(.receivedSession(session))
@@ -162,6 +168,7 @@ struct Multiplayer {
         session.$state.sink { state in
             if case .invalidated = state {
                 gameModel.reset()
+                viewModel.resetSession()
                 sessionInfo = nil
             }
         }.store(in: &subscriptions)
@@ -178,13 +185,15 @@ extension Multiplayer {
     ///
     static func subscribeToSessionUpdates(viewModel: ViewModel) {
         // Receive ObjectMessage messages
-        Task { @MainActor in
+        let task = Task { @MainActor in
             if let messenger = sessionInfo?.messenger {
                 for await (message, sender) in messenger.messages(of: ObjectMessage.self) {
                     await handleObjectMessage(message: message, sender: sender, viewModel: viewModel)
                 }
             }
         }
+        viewModel.tasks.insert(task)
+    
     }
     
     /// Handle receiving of the ObjectMessage sent through GroupSession.
@@ -239,7 +248,7 @@ extension Multiplayer {
     /// Returns: configured ModelEntity with image plane
     @MainActor
     static func configuredEntity(for message: ObjectMessage, viewModel: ViewModel) async -> ModelEntity? {
-        guard let attachment = viewModel.images.first(where: { $0.id.uuidString == message.selectedAttachmentId }),
+        guard let attachment = viewModel.attachments.first(where: { $0.id.uuidString == message.selectedAttachmentId }),
               let savedUrl = Utility.writeDataToDocuments(data: attachment.imageData, fileName: UUID().uuidString),
               let id = message.selectedAttachmentId else {
             return nil
@@ -279,7 +288,7 @@ extension Multiplayer {
     {
         // Publish list of ImageDataMessage messages received with UUID
         // when we receive ObjectMessage messages, check if that user is showing attachment
-        viewModel.images = await withTaskGroup(of: ImageDataMessage?.self) { group in
+        viewModel.attachments = await withTaskGroup(of: ImageDataMessage?.self) { group in
             var images = [ImageDataMessage]()
 
             attachments.forEach { attachment in

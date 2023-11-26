@@ -26,10 +26,12 @@ enum SessionAction {
 }
 
 class ViewModel: ObservableObject {
-    @Published var images = [ImageDataMessage]()
+    @Published var attachments = [ImageDataMessage]()
     @Published var immersionStyle: ImmersionStyle = .mixed
     @Published var session: GroupSession<GroupSessionDemoActivity>? = nil
     @Published var selectedAttachmentId: String? = nil
+    
+    var tasks = Set<Task<Void, Never>>()
     
     let actionSubject = PassthroughSubject<SessionAction, Never>()
     var sessionActionPublisher: AnyPublisher<SessionAction, Never> { actionSubject.eraseToAnyPublisher() }
@@ -63,10 +65,41 @@ extension ViewModel {
     func resetSession() {
         session?.leave()
         session = nil
-        images = []
+        attachments = []
+        
+        subscriptions = []
         
         for child in rootEntity.children {
             child.removeFromParent()
+        }
+        
+        tasks.forEach { $0.cancel() }
+        tasks = []
+    }
+}
+
+// MARK: - Send Position Message
+
+extension ViewModel {
+    
+    /// Send each player's selected object location & name during FaceTime calls that are spatial.
+    func sendObjectRootPositionUpdate(pose: Pose3D) {
+        let isSelectingAttachment: Bool = (selectedAttachmentId != nil) ? true : false
+        if let sessionInfo = sessionInfo,
+           let session = sessionInfo.session,
+           let messenger = sessionInfo.messenger
+        {
+            let everyoneElse = session.activeParticipants.subtracting([session.localParticipant])
+            let newMessage = ObjectMessage(pose: pose,
+                                           name: SelectedObjectManager.selectedObject?.name ?? "",
+                                           isSelectingAttachment: isSelectingAttachment,
+                                           selectedAttachmentId: selectedAttachmentId)
+            
+            if gameModel.isSpatial {
+                messenger.send(newMessage, to: .only(everyoneElse)) { error in
+                    if let error = error { print("Message failure:", error) }
+                }
+            }
         }
     }
 }

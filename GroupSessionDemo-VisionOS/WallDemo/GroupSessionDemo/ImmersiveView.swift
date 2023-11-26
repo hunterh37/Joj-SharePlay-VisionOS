@@ -27,34 +27,12 @@ struct ImmersiveView: View {
             
             // Send the position of the currentObjectRoot
             if let pose = Pose3D(currentObjectRoot.transformMatrix(relativeTo: rootEntity)) {
-                sendObjectRootPositionUpdate(pose: pose, //TEST: Position
-                                             selectedAttachmentId: viewModel.selectedAttachmentId,
-                                             isSelectingAttachment: (viewModel.selectedAttachmentId != nil) ? true : false)
+                viewModel.sendObjectRootPositionUpdate(pose: pose) //TEST: position
             }
         }
         .gesture(dragGesture)
         .task {
             viewModel.configureCurrentPlayerRoot()
-        }
-    }
-    
-    /// Send each player's selected object location & name during FaceTime calls that are spatial.
-    func sendObjectRootPositionUpdate(pose: Pose3D, selectedAttachmentId: String?, isSelectingAttachment: Bool) {
-        if let sessionInfo = sessionInfo,
-           let session = sessionInfo.session,
-           let messenger = sessionInfo.messenger
-        {
-            let everyoneElse = session.activeParticipants.subtracting([session.localParticipant])
-            let newMessage = ObjectMessage(pose: pose,
-                                           name: SelectedObjectManager.selectedObject?.name ?? "",
-                                           isSelectingAttachment: isSelectingAttachment,
-                                           selectedAttachmentId: selectedAttachmentId)
-            
-            if gameModel.isSpatial {
-                messenger.send(newMessage, to: .only(everyoneElse)) { error in
-                    if let error = error { print("Message failure:", error) }
-                }
-            }
         }
     }
     

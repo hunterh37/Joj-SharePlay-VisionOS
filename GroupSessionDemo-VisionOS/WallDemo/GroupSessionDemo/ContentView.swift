@@ -5,7 +5,7 @@
 //  Created by Hunter Harris on 10/5/23.
 //
 
-@preconcurrency import GroupActivities
+import GroupActivities
 import Combine
 import RealityKit
 import SwiftUI
@@ -26,46 +26,55 @@ struct ContentView: View {
             
             if viewModel.session != nil {
                 // We are in a session, show leave session button
-                VStack {
-                    Button {
-                        viewModel.resetSession()
-                        gameModel.reset()
-                    } label: {
-                        Text("Leave session").padding()
-                    }.padding()
-                    
-                    photosPickerView
-                    
-                    HStack {
-                        Image(systemName: "shareplay")
-                        Text("(\(gameModel.players.count))")
-                    }
-                }
-
+               inSharePlayView
             } else if groupStateObserver.isEligibleForGroupSession {
                 // Not in a session, but is eligible for a session (in Facetime call)
-                Button {
-                    Task {
-                        do { // Configure GroupSession & Join ImmersiveSpace
-                            try await startSession()
-                            await Multiplayer.configureSession(using: viewModel)
-                            await openImmersiveSpace(id: "ImmersiveView")
-                        } catch {
-                            print("SharePlay session failure", error)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "shareplay")
-                    Text("Start SharePlay")
-                }
+               sharePlayEligibleView
             } else {
                 // We are not in a session, and we are not eligible for a session (Not in a Facetime call)
-                HStack {
-                    Image(systemName: "shareplay.slash")
-                    Text("Join a FaceTime call to start SharePlay")
-                }.padding()
+               sharePlayUnavailableView
             }
         }
+    }
+    
+    var inSharePlayView: some View {
+        VStack {
+            Button {
+                viewModel.resetSession()
+                gameModel.reset()
+            } label: {
+                Text("Leave session").padding()
+            }.padding()
+            
+            HStack {
+                Image(systemName: "shareplay")
+                Text("(\(gameModel.players.count))")
+            }
+        }
+    }
+    
+    var sharePlayEligibleView: some View {
+        Button {
+            Task {
+                do { // Configure GroupSession & Join ImmersiveSpace
+                    try await startSession()
+                    await Multiplayer.configureSession(using: viewModel)
+                    await openImmersiveSpace(id: "ImmersiveView")
+                } catch {
+                    print("SharePlay session failure", error)
+                }
+            }
+        } label: {
+            Image(systemName: "shareplay")
+            Text("Start SharePlay")
+        }
+    }
+    
+    var sharePlayUnavailableView: some View {
+        HStack {
+            Image(systemName: "shareplay.slash")
+            Text("Join a FaceTime call to start SharePlay")
+        }.padding()
     }
     
     var photosPickerView: some View {
@@ -77,7 +86,7 @@ struct ContentView: View {
             Text("Add Photo")
             Image(systemName: "photo.fill")
                 .foregroundColor(Color.white)
-                .background(Color.accentColor)
+                .background(Color.red)
         }
         .onChange(of: selectedItem) { _, newItem in
             Task {
