@@ -16,7 +16,7 @@ struct JojApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: viewModel)
-        }.defaultSize(width: 400, height: 200)
+        }.defaultSize(width: 400, height: 350)
         
         ImmersiveSpace(id: "ImmersiveView") {
             ImmersiveView(gameModel: gameModel, viewModel: viewModel)

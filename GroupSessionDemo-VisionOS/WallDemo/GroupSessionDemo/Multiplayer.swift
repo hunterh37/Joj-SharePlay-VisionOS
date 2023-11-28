@@ -50,7 +50,7 @@ struct ImageDataMessage: Identifiable {
     var id: UUID
     let location: CGPoint
     let imageData: Data
-    let fileType: String
+    let fileType: Data.FileType
 }
 
 /// A container for group activity session information.
@@ -199,7 +199,10 @@ extension Multiplayer {
     /// Handle receiving of the ObjectMessage sent through GroupSession.
     /// When receiving the message, we first check the type to see if the user has selected an attachment (USDZ or Photo)
     ///     - If it is an attachment, only load the new model if different
-    
+    ///
+    /// Called when receiving ObjectMessage
+    ///     - check playerObjectRoots dict, using key: sender playerId to get playerObjectRoot Entity
+    ///     - update object position with message position
     @MainActor
     static func handleObjectMessage(message: ObjectMessage,
                                     sender: GroupSessionMessenger.MessageContext,
@@ -210,6 +213,7 @@ extension Multiplayer {
             return
         }
         // TODO: modify object material color to be players color
+        // TODO: can/should we set position with animation
         
         // Check if the user sending this message is selecting attachment (image, usdz..)
         // if so, we need to grab that downloaded data from the GroupSession Journal
@@ -236,6 +240,8 @@ extension Multiplayer {
         
         // Regardless of message type, set the position of the object to the position sent from message
         playerObjectRoots[sender.source.id.asPlayerName]?.transform = Transform(matrix: simd_float4x4(message.pose))
+        
+        // TODO: research spatial origin positioning
     }
 }
 
@@ -246,16 +252,21 @@ extension Multiplayer {
     /// Get the matching attachment data from Group Session Journal (viewModel.images) ...
     /// Write to app documents so we can load it into a ModelEntity
     /// Returns: configured ModelEntity with image plane
+    ///
     @MainActor
     static func configuredEntity(for message: ObjectMessage, viewModel: ViewModel) async -> ModelEntity? {
         guard let attachment = viewModel.attachments.first(where: { $0.id.uuidString == message.selectedAttachmentId }),
               let savedUrl = Utility.writeDataToDocuments(data: attachment.imageData, fileName: UUID().uuidString),
-              let id = message.selectedAttachmentId else {
-            return nil
-        }
+              let id = message.selectedAttachmentId 
+        else { return nil }
         
-        do {
+        switch attachment.fileType {
+        case .png, .jpeg:
             return await Utility.convertToCGImage_AndCreatePlaneEntity(fromURL: savedUrl, id: id)
+        case .usdz:
+            return await Utility.loadUsdzFromAttachment(url: savedUrl, id: id)
+        case .unknown:
+            return nil
         }
     }
     
@@ -283,11 +294,12 @@ extension Multiplayer {
 extension Multiplayer {
     
     // TEST: is this called when adding our own files?
-    /// Handle receiving files (images for now)
+    
+    /// Handle receiving files from other users in the GroupSession
     static func handleReceiveJournal(_ attachments: GroupSessionJournal.Attachments.Element, viewModel: ViewModel) async
     {
         // Publish list of ImageDataMessage messages received with UUID
-        // when we receive ObjectMessage messages, check if that user is showing attachment
+        // (when we receive ObjectMessage messages, check if that user is showing attachment..)
         viewModel.attachments = await withTaskGroup(of: ImageDataMessage?.self) { group in
             var images = [ImageDataMessage]()
 
@@ -296,8 +308,9 @@ extension Multiplayer {
                     do {
                         let metadata = try await attachment.loadMetadata(of: ImageMetadataMessage.self)
                         let imageData = try await attachment.load(Data.self)
-                        // TODO: need to get the file type when receiving of this data
-                        return .init(id: attachment.id, location: metadata.location, imageData: imageData, fileType: "")
+                        let fileType = imageData.detectType()
+                        
+                        return .init(id: attachment.id, location: metadata.location, imageData: imageData, fileType: fileType)
                     } catch { return nil }
                 }
             }

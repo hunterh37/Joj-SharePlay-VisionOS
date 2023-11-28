@@ -48,6 +48,22 @@ class Utility {
         }
     }
     
+    @MainActor
+    static func loadUsdzFromAttachment(url: URL, id: String) async -> ModelEntity? {
+        do {
+            let model = try await ModelEntity(contentsOf: url)
+            
+            model.generateCollisionShapes(recursive: false)
+            model.components.set(InputTargetComponent(allowedInputTypes: .all))
+            model.position = .zero
+            model.name = id
+            
+            return model
+        } catch {
+            return nil
+        }
+    }
+    
     //TEST: this is loading from remote url
 //    static func convertToCGImage_AndCreatePlaneEntity(fromURL url: URL, id: String) async throws -> ModelEntity? {
 //        let (data, _): (Data, URLResponse) = try await withCheckedThrowingContinuation { continuation in
@@ -92,9 +108,22 @@ class Utility {
     
     static func writeDataToDocuments(data: Data, fileName: String) -> URL? {
         do {
-            let savedUrl = documentsUrl.appendingPathComponent(fileName)
+            let fileType = data.detectType()
+            var fileTypeString = ""
+            switch fileType {
+            case .jpeg:
+                fileTypeString = "jpeg"
+            case .png:
+                fileTypeString = "png"
+            case .usdz:
+                fileTypeString = "usdz"
+            case .unknown:
+                return nil
+            }
+            
+            let savedUrl = documentsUrl.appendingPathComponent(fileName).appendingPathExtension(fileTypeString)
             try data.write(to: savedUrl)
-            print("Saved image to: \(savedUrl)")
+            print("Saved file to: \(savedUrl)")
             return savedUrl
         } catch {
             print(error.localizedDescription)

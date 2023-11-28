@@ -44,6 +44,7 @@ class ViewModel: ObservableObject {
                 guard let self else { return }
                 Multiplayer.joinSession(session: groupSession, viewModel: self)
                 self.session = groupSession
+                self.configureCurrentPlayerRoot()
             }
         }.store(in: &subscriptions)
     }
@@ -75,6 +76,8 @@ extension ViewModel {
         
         tasks.forEach { $0.cancel() }
         tasks = []
+        
+        currentObjectRoot.removeFromParent()
     }
 }
 
@@ -108,21 +111,23 @@ extension ViewModel {
 
 extension ViewModel {
     
-    func userDidSelectPhoto(data: Data) {
-        //TODO: here we can save file to documents then get file type then add img or usdz
+    //TEST: do we need to configure a local entity for this newly added object, or will it get configured same as remote objects do...
 
-        // Send ImageMetadataMessage to GroupSession Journal
-        addImageAttachment(data: data)
-        
-        //TEST: do we need to configure a local entity for this newly added object, or will it get configured same as remote objects do...
-        
-        // Configure entity for local player only who added the object
-        configureCurrentPlayerRootWithData(data: data)
+    func userDidSelectData(data: Data) {
+        addAttachment(data: data) // Send ImageMetadataMessage to GroupSession Journal
+        configureCurrentPlayerRootForAttachment(data: data) // Configure entity for local player only who added the object
     }
     
-    /// GroupSession Journal: Add the new ImageMetadataMessage to the GroupSession Journal\
-    func addImageAttachment(data: Data) {
-        Task(priority: .userInitiated) {            
+    /// GroupSession Journal: Add the new ImageMetadataMessage to the GroupSession Journal
+    ///
+    /// Called when adding both USDZ or Image attachments
+    /// Create new ImageMetadataMessage object with new data and random id selectedAttachmentId,
+    ///
+    /// (Note: this is just sending the ImageMetadataMessage with selected attachment id...
+    ///  we observe the ObjectMessage.isSelectingAttachment to position this attachment later on.)
+    ///
+    func addAttachment(data: Data) {
+        Task() { @MainActor in
             let id = UUID().uuidString
             selectedAttachmentId = id
             let metadata = ImageMetadataMessage(location: .init(x: 0, y: 0), id: id)
@@ -132,19 +137,39 @@ extension ViewModel {
         }
     }
     
-    /// Adds the object root for current player when adding new attachment
-    /// Saves data to app documents, then creates plane entity modle with image
+    /// Adds the object root for current player when adding new Image or Usdz attachment
+    /// Save the data to app documents,
+    /// if Image attachment:  return the configured plane entity Model with image
+    /// if Usdz attachment: return the configured Model
     ///
-    func configureCurrentPlayerRootWithData(data: Data) {
+    func configureCurrentPlayerRootForAttachment(data: Data) {
         Task { @MainActor in
-            guard let savedUrl = Utility.writeDataToDocuments(data: data, fileName: UUID().uuidString),
-                  let model = await Utility.convertToCGImage_AndCreatePlaneEntity(fromURL: savedUrl, id: savedUrl.pathExtension)
-            else { return }
             
-            currentObjectRoot.removeFromParent()
-            currentObjectRoot = model
-            currentObjectRoot.components[InputTargetComponent.self] = InputTargetComponent(allowedInputTypes: .all)
-            currentObjectRoot.generateCollisionShapes(recursive: true)
+            let fileType = data.detectType()
+            switch fileType {
+            case .png, .jpeg:
+                guard let savedUrl = Utility.writeDataToDocuments(data: data, fileName: UUID().uuidString),
+                      let model = await Utility.convertToCGImage_AndCreatePlaneEntity(fromURL: savedUrl, id: savedUrl.pathExtension)
+                else { return }
+                
+                configureCurrentPlayerRootObject(model: model)
+              
+            case .usdz:
+                guard let savedUrl = Utility.writeDataToDocuments(data: data, fileName: UUID().uuidString),
+                      let model = await Utility.loadUsdzFromAttachment(url: savedUrl, id: savedUrl.pathExtension)
+                else { return }
+                
+                configureCurrentPlayerRootObject(model: model)
+            case .unknown:
+                return
+            }
         }
+    }
+    
+    func configureCurrentPlayerRootObject(model: ModelEntity) {
+        currentObjectRoot.removeFromParent()
+        currentObjectRoot = model
+        currentObjectRoot.components[InputTargetComponent.self] = InputTargetComponent(allowedInputTypes: .all)
+        currentObjectRoot.generateCollisionShapes(recursive: true)
     }
 }
