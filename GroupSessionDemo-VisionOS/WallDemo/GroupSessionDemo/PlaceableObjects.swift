@@ -6,21 +6,59 @@
 //
 
 import RealityKit
+import Foundation
 
-struct PlaceableObject {
+struct PlaceableObject: Identifiable {
+    var id: UUID = UUID()
     var name: String
     var modelEntity: ModelEntity
+    var imageName: String
+    var isUsdz: Bool
 }
 
-struct PlaceableObjects {
+class PlaceableObjects {
     
-    static var allObjects = [cube, sphere]
-    static var cube = PlaceableObject(name: "cube", modelEntity: ModelEntity(mesh: .generateBox(size: 1), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateBox(size: .one), mass: 100))
+    static let shared = PlaceableObjects()
     
-    static var sphere = PlaceableObject(name: "sphere", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100))
+    var allObjects = [cube, sphere]
+    static var cube = PlaceableObject(name: "cube", modelEntity: ModelEntity(mesh: .generateBox(size: 1), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateBox(size: .one), mass: 100), imageName: "cube.fill", isUsdz: false)
+    
+    static var sphere = PlaceableObject(name: "sphere", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100), imageName: "circle.fill", isUsdz: false)
+    
+   // static var toy = PlaceableObject(name: "toy", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100), imageName: "circle.fill", isUsdz: true)
+    
+    init() {
+        loadAllUsdzObjects()
+    }
+    
+    /// The list of allObjects contains RealityKit generic ModelEntity such as cube and sphere,
+    /// but also contains usdz objects that must be loaded from app files
+    /// these are custom usdz's we ship in the app, different from if user imports custom usdz
+    ///
+    /// Loop through all objects in allObjects list, load the object using ModelEntity.load if it isUsdz
+    /// replace the corresponding PlaceableObject object inside allObjects with this newly loaded ModelEntity
+    /// 
+    func loadAllUsdzObjects() {
+        Task {
+            for object in allObjects {
+                if object.isUsdz {
+                    do {
+                        let loadedModel = try await ModelEntity(named: object.name)
+                        let loadedPlaceableObject = PlaceableObject(name: object.name, modelEntity: loadedModel, imageName: object.imageName, isUsdz: true)
+                        if let indexToReplace = allObjects.firstIndex(where: { $0.name == object.name }) {
+                           allObjects[indexToReplace] = loadedPlaceableObject
+                            print("loaded usdz: \(object.name)")
+                        }
+                    } catch {
+                        
+                    }
+                }
+            }
+        }
+    }
     
     static func modelForName(name: String) -> ModelEntity? {
-        let model = allObjects.first { $0.name == name }?.modelEntity
+        let model = PlaceableObjects.shared.allObjects.first { $0.name == name }?.modelEntity
         if let model {
             return model
         } else {
@@ -29,15 +67,20 @@ struct PlaceableObjects {
     }
     
     static func currentModelSelected() -> ModelEntity {
-        if let name = SelectedObjectManager.selectedObject?.name, let model = modelForName(name: name) {
+        if let name = SelectedObjectManager.shared.selectedObject?.name, 
+            let model = modelForName(name: name) {
             return model
         } else {
             return PlaceableObjects.cube.modelEntity
         }
     }
+    
+    
 }
 
 
-struct SelectedObjectManager {
-    static var selectedObject: PlaceableObject? = nil
+class SelectedObjectManager {
+    
+    static var shared = SelectedObjectManager()
+    var selectedObject: PlaceableObject? = nil
 }

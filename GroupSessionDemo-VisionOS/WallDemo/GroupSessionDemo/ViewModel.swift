@@ -23,6 +23,7 @@ var gameModel: GameModel = .init()
 
 enum SessionAction {
     case receivedSession(GroupSession<GroupSessionDemoActivity>)
+    case openImmersiveSpace(Void)
 }
 
 class ViewModel: ObservableObject {
@@ -44,7 +45,9 @@ class ViewModel: ObservableObject {
                 guard let self else { return }
                 Multiplayer.joinSession(session: groupSession, viewModel: self)
                 self.session = groupSession
-                self.configureCurrentPlayerRoot()
+                self.configureCurrentPlayerRoot_Default()
+            case .openImmersiveSpace():
+                return
             }
         }.store(in: &subscriptions)
     }
@@ -55,12 +58,21 @@ class ViewModel: ObservableObject {
 extension ViewModel {
     
     /// Add the root object for the current users selected object to be added to
-    func configureCurrentPlayerRoot() {
+    func configureCurrentPlayerRoot_Default() {
         currentObjectRoot.removeFromParent()
         currentObjectRoot = PlaceableObjects.currentModelSelected().clone(recursive: true)
         currentObjectRoot.components[InputTargetComponent.self] = InputTargetComponent(allowedInputTypes: .all)
         currentObjectRoot.generateCollisionShapes(recursive: true)
         rootEntity.addChild(currentObjectRoot)
+    }
+    
+    /// Called when user selects new PlaceableObject,
+    /// Update the selectedObject on SelectedObjectManager,
+    /// call configureCurrentPlayerRoot to remove old object, re-add new selectedObject
+    func selectedNewObject(object: PlaceableObject) {
+        SelectedObjectManager.shared.selectedObject = object
+        configureCurrentPlayerRoot_Default()
+        print("SelectedObjectManager, selected: \(object.name)")
     }
     
     func resetSession() {
@@ -94,7 +106,7 @@ extension ViewModel {
         {
             let everyoneElse = session.activeParticipants.subtracting([session.localParticipant])
             let newMessage = ObjectMessage(pose: pose,
-                                           name: SelectedObjectManager.selectedObject?.name ?? "",
+                                           name: SelectedObjectManager.shared.selectedObject?.name ?? "",
                                            isSelectingAttachment: isSelectingAttachment,
                                            selectedAttachmentId: selectedAttachmentId)
             
@@ -113,6 +125,9 @@ extension ViewModel {
     
     //TEST: do we need to configure a local entity for this newly added object, or will it get configured same as remote objects do...
 
+    /// Called when user selects photo item from photo picker or,
+    /// when user selects usdz file from file importer
+    ///
     func userDidSelectData(data: Data) {
         addAttachment(data: data) // Send ImageMetadataMessage to GroupSession Journal
         configureCurrentPlayerRootForAttachment(data: data) // Configure entity for local player only who added the object
@@ -152,21 +167,21 @@ extension ViewModel {
                       let model = await Utility.convertToCGImage_AndCreatePlaneEntity(fromURL: savedUrl, id: savedUrl.pathExtension)
                 else { return }
                 
-                configureCurrentPlayerRootObject(model: model)
+                configureCurrentPlayerRoot_FromAttachment(model: model)
               
             case .usdz:
                 guard let savedUrl = Utility.writeDataToDocuments(data: data, fileName: UUID().uuidString),
                       let model = await Utility.loadUsdzFromAttachment(url: savedUrl, id: savedUrl.pathExtension)
                 else { return }
                 
-                configureCurrentPlayerRootObject(model: model)
+                configureCurrentPlayerRoot_FromAttachment(model: model)
             case .unknown:
                 return
             }
         }
     }
     
-    func configureCurrentPlayerRootObject(model: ModelEntity) {
+    func configureCurrentPlayerRoot_FromAttachment(model: ModelEntity) {
         currentObjectRoot.removeFromParent()
         currentObjectRoot = model
         currentObjectRoot.components[InputTargetComponent.self] = InputTargetComponent(allowedInputTypes: .all)

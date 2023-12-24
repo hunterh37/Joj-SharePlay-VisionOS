@@ -12,7 +12,8 @@ import Spatial
 import SwiftUI
 @preconcurrency import GroupActivities
 
-/// Starts the GroupSession activity for the app
+/// Starts / Creates new GroupSession activity for the app
+/// (User can start new session or get invited to existing, this is only called when user creates new session)
 func startSession() async throws {
     let activity = GroupSessionDemoActivity()
     let activationSuccess = try await activity.activate()
@@ -65,13 +66,21 @@ class DemoSessionInfo: ObservableObject {
 
 struct Multiplayer {
     
-    /// Create the main GroupSession, configure all logic needed when a user first joins a session
+    /// This function does not create the session, it simply awaits any new GroupSession
+    /// before doing the required configuration needed
+    ///
+    /// Await for the new GroupSession, configure all logic needed when a user first joins a session
     /// Add objectRoots for each player in the session
+    ///
     static func configureSession(using viewModel: ViewModel) async {
         
         var session: GroupSession<GroupSessionDemoActivity>
         sessionInfo = .init()
         for await newSession in GroupSessionDemoActivity.sessions() {
+            
+            // Send openImmersiveSpace action, so user always opens space by either creating new or inviting
+            viewModel.actionSubject.send(.openImmersiveSpace(()))
+            
             print("New GroupActivities session", newSession)
             
             session = newSession
@@ -119,7 +128,6 @@ struct Multiplayer {
                     await rootEntity.addChild(newEntity)
                 }
             }
-            
             
             // *Session Handling: Add objectRoot when new player joins
             Task {

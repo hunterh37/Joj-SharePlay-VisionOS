@@ -39,8 +39,6 @@ struct ContentView: View {
                     Spacer()
                     Text("Joj").padding(20)
                     HStack {
-                        Spacer()
-                        
                         if viewModel.session != nil {
                             // We are in a session, show leave session button
                             inSharePlayView
@@ -51,13 +49,29 @@ struct ContentView: View {
                             // We are not in a session, and we are not eligible for a session (Not in a Facetime call)
                             sharePlayUnavailableView
                         }
-                        
-                        Spacer()
-                    }
+                    }.padding()
                     
                     Spacer()
                 }
             }
+        }
+        
+        // Open the ImmersiveSpace when we receive .openImmersiveSpace from sessionActionPublisher
+        .onReceive(viewModel.sessionActionPublisher, perform: { action in
+            switch action {
+            case .openImmersiveSpace():
+                Task { @MainActor in
+                    await openImmersiveSpace(id: "ImmersiveView")
+                }
+            default: return
+            }
+        })
+        
+        // When view appears, await the first new session received from GroupSession,
+        // this does not create new session, this leaves us open waiting to either join
+        // other session we are invited to, or we can create our own new session
+        .task { @MainActor in
+            await Multiplayer.configureSession(using: viewModel)
         }
     }
     
@@ -73,6 +87,22 @@ struct ContentView: View {
                       systemImage: "square.and.arrow.down")
             }
             
+            // Object selection List
+            VStack {
+                ScrollView(.horizontal,showsIndicators: false) {
+                    HStack(alignment: .center, spacing: 5) {
+                        ForEach(PlaceableObjects.shared.allObjects) { object in
+                            VStack {
+                                Image(systemName: object.imageName).font(.extraLargeTitle2)
+                            }
+                            .onTapGesture {
+                                viewModel.selectedNewObject(object: object)
+                            }
+                        }
+                    }
+                }
+            }.padding(.leading, 100)
+            
             Spacer()
             
             Button {
@@ -87,6 +117,7 @@ struct ContentView: View {
                 Text("(\(gameModel.players.count))")
             }
         }
+        // Handle USDZ import
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.usdz]) { result in
             switch result {
             case .success(let url):
@@ -105,29 +136,36 @@ struct ContentView: View {
     }
     
     var sharePlayEligibleView: some View {
-        Button {
-            Task {
-                do { // Configure GroupSession & Join ImmersiveSpace
-                    try await startSession()
-                    await Multiplayer.configureSession(using: viewModel)
-                    await openImmersiveSpace(id: "ImmersiveView")
-                } catch {
-                    print("SharePlay session failure", error)
+        HStack {
+            Spacer()
+            Button {
+                Task {
+                    do {
+                        // Start New GroupSession
+                        try await startSession()
+                    } catch {
+                        print("SharePlay session failure", error)
+                    }
                 }
-            }
-        } label: {
-            HStack {
-                Image(systemName: "shareplay")
-                Text("Start SharePlay")
-            }
-        }.tint(.green).padding()
+            } label: {
+                HStack {
+                    Image(systemName: "shareplay")
+                    Text("Start SharePlay")
+                }
+            }.tint(.green).padding()
+            Spacer()
+        }
     }
     
     var sharePlayUnavailableView: some View {
         HStack {
-            Image(systemName: "shareplay.slash")
-            Text("Join a FaceTime call to start SharePlay")
-        }.padding()
+            Spacer()
+            HStack {
+                Image(systemName: "shareplay.slash")
+                Text("Join a FaceTime call to start SharePlay")
+            }.padding()
+            Spacer()
+        }
     }
     
     var photosPickerView: some View {
@@ -169,9 +207,6 @@ extension ContentView {
 #Preview {
     ContentView(viewModel: .init())
 }
-
-
-
 
 import UniformTypeIdentifiers
 
