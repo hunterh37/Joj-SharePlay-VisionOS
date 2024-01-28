@@ -55,6 +55,9 @@ struct ContentView: View {
                 }
             }
         }
+        .onAppear {
+            viewModel.actionSubject.send(.testAction(()))
+        }
         
         // Open the ImmersiveSpace when we receive .openImmersiveSpace from sessionActionPublisher
         .onReceive(viewModel.sessionActionPublisher, perform: { action in
@@ -63,6 +66,9 @@ struct ContentView: View {
                 Task { @MainActor in
                     await openImmersiveSpace(id: "ImmersiveView")
                 }
+                
+            case .testAction():
+                print("ContentView: received test action")
             default: return
             }
         })
@@ -180,7 +186,7 @@ struct ContentView: View {
                 .background(Color.red)
         }
         .onChange(of: selectedItem) { _, newItem in
-            Task {
+            Task { @MainActor in
                 if let data = try? await newItem?.loadTransferable(type: Data.self) {
                     // User has selected a photo item and we have loaded the data,
                     // need to add it to the GroupSession Journal

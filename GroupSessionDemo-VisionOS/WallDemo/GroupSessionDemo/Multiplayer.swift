@@ -24,12 +24,12 @@ func startSession() async throws {
 struct GroupSessionDemoActivity: GroupActivity {
     var metadata: GroupActivityMetadata {
         var data = GroupActivityMetadata()
-        data.title = "Group Session Demo"
+        data.title = "Joj: Group Session"
         data.subtitle = "Shared scenes with entity placement."
         data.supportsContinuationOnTV = false
         return data
     }
-    static var activityIdentifier = "org.hunt3r.groupsessiondemo"
+    static var activityIdentifier = "dicyaninlabs.org.shareplay1"
 }
 
 // MARK: - Multiplayer Messages
@@ -73,17 +73,11 @@ struct Multiplayer {
     /// Add objectRoots for each player in the session
     ///
     static func configureSession(using viewModel: ViewModel) async {
-        
-        var session: GroupSession<GroupSessionDemoActivity>
         sessionInfo = .init()
         for await newSession in GroupSessionDemoActivity.sessions() {
             
-            // Send openImmersiveSpace action, so user always opens space by either creating new or inviting
-            viewModel.actionSubject.send(.openImmersiveSpace(()))
-            
             print("New GroupActivities session", newSession)
-            
-            session = newSession
+            viewModel.session = newSession
             sessionInfo?.session = newSession
             let journal = GroupSessionJournal(session: newSession)
             sessionInfo?.journal = journal
@@ -122,7 +116,7 @@ struct Multiplayer {
             
             // *Session Handling: Add initial objectRoot for existing players who aren't the `local` player.
             gameModel.players.filter { $0.name != Player.local!.name }.forEach { player in
-                Task {
+                Task { @MainActor in // ** test mainactor
                     let newEntity = await initialObject(for: player)
                     playerObjectRoots[player.name] = newEntity
                     await rootEntity.addChild(newEntity)
@@ -130,7 +124,7 @@ struct Multiplayer {
             }
             
             // *Session Handling: Add objectRoot when new player joins
-            Task {
+            Task { @MainActor in
                 for try await updatedPlayerList in newSession.$activeParticipants.values {
                     
                     for participant in updatedPlayerList
@@ -142,10 +136,10 @@ struct Multiplayer {
                         {
                             gameModel.players.append(potentialNewPlayer)
                             
-                            Task {
+                            Task { @MainActor in
                                 let newEntity = await initialObject(for: potentialNewPlayer)
                                 playerObjectRoots[potentialNewPlayer.name] = newEntity
-                                await rootEntity.addChild(newEntity)
+                                rootEntity.addChild(newEntity)
                             }
                         }
                     }
@@ -161,7 +155,10 @@ struct Multiplayer {
             viewModel.tasks.insert(task)
             
             // *Session Handling: Publish new session to the ViewModel
-            viewModel.actionSubject.send(.receivedSession(session))
+            viewModel.actionSubject.send(.receivedSession(newSession))
+            
+            // Send openImmersiveSpace action, so user always opens space by either creating new or inviting
+            viewModel.actionSubject.send(.openImmersiveSpace(()))
         }
     }
     
@@ -281,7 +278,7 @@ extension Multiplayer {
     /// Creates an Object for each player in multiplayer as they join the game and play spatially.
     @MainActor
     static func initialObject(for player: Player) async -> ModelEntity {
-        let newObject = PlaceableObjects.cube.modelEntity
+        let newObject = PlaceableObjects.shared.cube.modelEntity
         let handOrigin = ModelEntity()
         let objectIntermediate = Entity()
         

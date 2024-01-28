@@ -24,6 +24,7 @@ var gameModel: GameModel = .init()
 enum SessionAction {
     case receivedSession(GroupSession<GroupSessionDemoActivity>)
     case openImmersiveSpace(Void)
+    case testAction(Void)
 }
 
 class ViewModel: ObservableObject {
@@ -42,12 +43,18 @@ class ViewModel: ObservableObject {
         sessionActionPublisher.sink { [weak self] action in
             switch action {
             case .receivedSession(let groupSession):
-                guard let self else { return }
-                Multiplayer.joinSession(session: groupSession, viewModel: self)
-                self.session = groupSession
-                self.configureCurrentPlayerRoot_Default()
+                guard let self,
+                      self.session == nil else { return }
+                
+                Task { @MainActor in
+                    Multiplayer.joinSession(session: groupSession, viewModel: self)
+                    self.session = groupSession
+                    self.configureCurrentPlayerRoot_Default()
+                }
             case .openImmersiveSpace():
                 return
+            case .testAction():
+                print("ViewModel: received test action")
             }
         }.store(in: &subscriptions)
     }
