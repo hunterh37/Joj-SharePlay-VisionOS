@@ -12,7 +12,7 @@ struct JojApp: App {
     
     @State private var viewModel = ViewModel()
     @State private var gameModel = GameModel()
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: viewModel)

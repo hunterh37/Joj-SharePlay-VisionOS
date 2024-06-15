@@ -22,14 +22,19 @@ class PlaceableObjects {
     
     init() {
         
-        loadAllUsdzObjects()
+       
         
         // Test crash fix: 1/28/23
         Task { @MainActor in
             cube = PlaceableObject(name: "cube", modelEntity: ModelEntity(mesh: .generateBox(size: 1), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateBox(size: .one), mass: 100), imageName: "cube.fill", isUsdz: false)
-            sphere = PlaceableObject(name: "sphere", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100), imageName: "circle.fill", isUsdz: false)
+            cube.modelEntity.components[PhysicsBodyComponent.self] = nil
             
-            allObjects = [cube, sphere]
+            sphere = PlaceableObject(name: "sphere", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100), imageName: "circle.fill", isUsdz: false)
+            sphere.modelEntity.components[PhysicsBodyComponent.self] = nil
+            
+            allObjects = [cube, sphere, PlaceableObjects.toy]
+            
+            loadAllUsdzObjects()
         }
     }
     
@@ -37,7 +42,7 @@ class PlaceableObjects {
     var cube = PlaceableObject(name: "cube", modelEntity: ModelEntity(), imageName: "cube.fill", isUsdz: false)
     var sphere = PlaceableObject(name: "sphere", modelEntity: ModelEntity(), imageName: "circle.fill", isUsdz: false)
     
-   // static var toy = PlaceableObject(name: "toy", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100), imageName: "circle.fill", isUsdz: true)
+    static var toy = PlaceableObject(name: "toy", modelEntity: ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [UnlitMaterial(color: .blue)], collisionShape: .generateSphere(radius: 0.5), mass: 100), imageName: "circle.fill", isUsdz: true)
     
     /// The list of allObjects contains RealityKit generic ModelEntity such as cube and sphere,
     /// but also contains usdz objects that must be loaded from app files

@@ -15,7 +15,10 @@ struct ContentView: View {
     
     @ObservedObject var viewModel: ViewModel
     @StateObject var groupStateObserver = GroupStateObserver()
+    @StateObject var gameModel2 = gameModel
     
+    @State var isActivitySharingSheetPresented = false
+    @State var playerName = ""
     @State private var selectedItem: PhotosPickerItem? = nil // Photo import
     @State private var isImporting = false // Usdz import
     
@@ -39,7 +42,7 @@ struct ContentView: View {
                     Spacer()
                     Text("Joj").padding(20)
                     HStack {
-                        if viewModel.session != nil {
+                        if viewModel.session != nil && groupStateObserver.isEligibleForGroupSession {
                             // We are in a session, show leave session button
                             inSharePlayView
                         } else if groupStateObserver.isEligibleForGroupSession {
@@ -55,9 +58,6 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            viewModel.actionSubject.send(.testAction(()))
-        }
         
         // Open the ImmersiveSpace when we receive .openImmersiveSpace from sessionActionPublisher
         .onReceive(viewModel.sessionActionPublisher, perform: { action in
@@ -67,8 +67,10 @@ struct ContentView: View {
                     await openImmersiveSpace(id: "ImmersiveView")
                 }
                 
-            case .testAction():
-                print("ContentView: received test action")
+            case .dismissImmersiveSpace():
+                Task { @MainActor in
+                    await dismissImmersiveSpace()
+                }
             default: return
             }
         })
@@ -78,6 +80,19 @@ struct ContentView: View {
         // other session we are invited to, or we can create our own new session
         .task { @MainActor in
             await Multiplayer.configureSession(using: viewModel)
+        }
+        .sheet(isPresented: $isActivitySharingSheetPresented) {
+            ActivitySharingViewController(activity: GroupSessionDemoActivity())
+        }
+        .alert("What's your name?", isPresented: $viewModel.showPlayerNameAlert)
+        {
+            TextField("Name", text: $playerName).textContentType(.givenName)
+            
+            Button("Play") {
+                GameManager.shared.playerName = playerName
+            }
+        } message: {
+            Text("This name is shown to the other participants in your SharePlay session.")
         }
     }
     
@@ -120,7 +135,7 @@ struct ContentView: View {
             
             HStack {
                 Image(systemName: "shareplay")
-                Text("(\(gameModel.players.count))")
+                Text("(\($gameModel2.players.wrappedValue.count))")
             }
         }
         // Handle USDZ import
@@ -144,33 +159,50 @@ struct ContentView: View {
     var sharePlayEligibleView: some View {
         HStack {
             Spacer()
-            Button {
-                Task {
-                    do {
-                        // Start New GroupSession
-                        try await startSession()
-                    } catch {
-                        print("SharePlay session failure", error)
-                    }
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "shareplay")
-                    Text("Start SharePlay")
-                }
-            }.tint(.green).padding()
+            startShareplayButton
             Spacer()
         }
     }
     
-    var sharePlayUnavailableView: some View {
-        HStack {
-            Spacer()
+    var startShareplayButton: some View {
+        Button {
+            Task { @MainActor in
+                do {
+                    // Start New GroupSession
+                    try await startSession()
+                } catch {
+                    print("SharePlay session failure", error)
+                }
+            }
+        } label: {
             HStack {
-                Image(systemName: "shareplay.slash")
-                Text("Join a FaceTime call to start SharePlay")
-            }.padding()
-            Spacer()
+                Image(systemName: "shareplay")
+                Text("Start SharePlay")
+            }
+        }.tint(.green).padding()
+    }
+    
+    var sharePlayUnavailableView: some View {
+        VStack {
+            HStack {
+                Spacer()
+                HStack {
+                    Image(systemName: "shareplay.slash")
+                    Text("Join a FaceTime call to start SharePlay")
+                }.padding()
+                Spacer()
+            }
+            
+            VStack {
+                Button {
+                    isActivitySharingSheetPresented = true
+                } label: {
+                    HStack {
+                        Image(systemName: "shareplay")
+                        Text("Invite to SharePlay")
+                    }
+                }.tint(.green).padding()
+            }
         }
     }
     
@@ -233,4 +265,22 @@ struct USDZDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         return FileWrapper(regularFileWithContents: fileData)
     }
+}
+
+
+
+
+import GroupActivities
+import SwiftUI
+import UIKit
+
+struct ActivitySharingViewController: UIViewControllerRepresentable {
+
+    let activity: GroupActivity
+
+    func makeUIViewController(context: Context) -> GroupActivitySharingController {
+        return try! GroupActivitySharingController(activity)
+    }
+
+    func updateUIViewController(_ uiViewController: GroupActivitySharingController, context: Context) { }
 }

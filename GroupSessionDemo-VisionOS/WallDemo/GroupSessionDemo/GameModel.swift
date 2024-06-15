@@ -12,7 +12,7 @@ class GameModel: ObservableObject {
     @Published var players: [Player] = []
     @Published var isPlaying = false
     @Published var isSharePlaying = false
-    @Published var isSpatial = false
+    @Published var isSpatial = true
     
     /// Preload assets when the app launches to avoid pop-in during the game.
     init() {

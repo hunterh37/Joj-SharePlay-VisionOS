@@ -30,8 +30,8 @@ struct ImmersiveView: View {
     var body: some View {
         RealityView { content in
             content.add(rootEntity) // Add global rootEntity of the scene, all objects added as children 
+            viewModel.spawnFloor()
         } update: { content in
-            
             
             // TODO:  ? need to get offset from spatial origin ?
             // ? if spatial origin offset returns position relative to current player,

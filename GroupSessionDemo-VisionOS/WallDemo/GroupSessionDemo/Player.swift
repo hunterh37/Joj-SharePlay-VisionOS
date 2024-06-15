@@ -10,14 +10,15 @@ import SwiftUI
 /// Data about a player in a multiplayer session.
 class Player {
     let name: String
+    let id: UUID
     var score: Int
     let color: Color
-    var isReady = false
     
-    init(name: String, score: Int, color: Color) {
+    init(name: String, id: UUID, score: Int, color: Color) {
         self.name = name
         self.score = score
         self.color = color
+        self.id = id
     }
     
     /// The local player, "me".

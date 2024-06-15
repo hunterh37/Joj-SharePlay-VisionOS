@@ -27,19 +27,18 @@ class Utility {
     static func convertToCGImage_AndCreatePlaneEntity(fromURL url: URL, id: String) async -> ModelEntity? {
         do {
             if let imageData = try? Data(contentsOf: url),
-                let image = UIImage(data: imageData), let cgImage = image.cgImage {
-                    let texture: TextureResource = try await .generate(from: cgImage, options: .init(semantic: .normal))
-                    var material: SimpleMaterial = .init()
-                    material.color = .init(tint: .white.withAlphaComponent(0.999), texture: .init(texture))
-                    let entity = ModelEntity(mesh: .generatePlane(width: 2, height: 1.75), materials: [material])
-                    
-                    entity.generateCollisionShapes(recursive: false)
-                    entity.components.set(InputTargetComponent(allowedInputTypes: .all))
-                    entity.position = .zero
-                    entity.name = id
-                    
-                    return entity
-               
+               let image = UIImage(data: imageData), let cgImage = image.cgImage {
+                let texture: TextureResource = try await .generate(from: cgImage, options: .init(semantic: .normal))
+                var material: SimpleMaterial = .init()
+                material.color = .init(tint: .white.withAlphaComponent(0.999), texture: .init(texture))
+                let entity = ModelEntity(mesh: .generatePlane(width: 2, height: 1.75), materials: [material])
+                
+                entity.generateCollisionShapes(recursive: false)
+                entity.components.set(InputTargetComponent(allowedInputTypes: .all))
+                entity.position = .zero
+                entity.name = id
+                entity.scale = .init(repeating: 0.5)
+                return entity
             } else {
                 return nil
             }
@@ -57,7 +56,7 @@ class Utility {
             model.components.set(InputTargetComponent(allowedInputTypes: .all))
             model.position = .zero
             model.name = id
-            
+            model.scale = .init(repeating: 0.1)
             return model
         } catch {
             return nil

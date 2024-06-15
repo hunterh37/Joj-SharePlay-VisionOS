@@ -29,7 +29,7 @@ struct GroupSessionDemoActivity: GroupActivity {
         data.supportsContinuationOnTV = false
         return data
     }
-    static var activityIdentifier = "dicyaninlabs.org.shareplay1"
+    static var activityIdentifier = "dicyaninlabs.org.shareplay-activity"
 }
 
 // MARK: - Multiplayer Messages
@@ -72,93 +72,100 @@ struct Multiplayer {
     /// Await for the new GroupSession, configure all logic needed when a user first joins a session
     /// Add objectRoots for each player in the session
     ///
+    @MainActor
     static func configureSession(using viewModel: ViewModel) async {
         sessionInfo = .init()
         for await newSession in GroupSessionDemoActivity.sessions() {
-            
-            print("New GroupActivities session", newSession)
-            viewModel.session = newSession
-            sessionInfo?.session = newSession
-            let journal = GroupSessionJournal(session: newSession)
-            sessionInfo?.journal = journal
-            gameModel.isSharePlaying = true
-            
-            // Spatial coordination.
-            if let coordinator = await newSession.systemCoordinator {
-                var config = SystemCoordinator.Configuration()
-                config.spatialTemplatePreference = .sideBySide
-                config.supportsGroupImmersiveSpace = true
-                coordinator.configuration = config
+            Task { @MainActor in
+                print("New GroupActivities session", newSession)
+                viewModel.session = newSession
+                sessionInfo?.session = newSession
+                let journal = GroupSessionJournal(session: newSession)
+                sessionInfo?.journal = journal
+                gameModel.isSharePlaying = true
                 
-                Task.detached { @MainActor in
-                    for await state in coordinator.localParticipantStates {
-                        if state.isSpatial {
-                            gameModel.isSpatial = true
-                        } else {
-                            gameModel.isSpatial = false
-                        }
+                // Spatial coordination.
+                if let coordinator = await newSession.systemCoordinator {
+                    var config = SystemCoordinator.Configuration()
+                    config.spatialTemplatePreference = .sideBySide
+                    config.supportsGroupImmersiveSpace = true
+                    coordinator.configuration = config
+                    
+                    //                Task.detached { @MainActor in
+                    //                    for await state in coordinator.localParticipantStates {
+                    //                        if state.isSpatial {
+                    //                            gameModel.isSpatial = true
+                    //                        } else {
+                    //                            gameModel.isSpatial = false
+                    //                        }
+                    //                    }
+                    //                }
+                }
+                
+                do {
+                    print("Waiting before starting group activity.")
+                    try await Task.sleep(for: .seconds(3))
+                } catch {
+                    print("Couldn't sleep.", error)
+                }
+                
+                gameModel.players = newSession.activeParticipants.map { participant in
+                    Player(name: String(participant.id.asPlayerName), id: participant.id, score: 0, color: .random())
+                }
+                
+                Player.local = gameModel.players.first(where: { $0.name == newSession.localParticipant.id.asPlayerName })
+                
+                // *Session Handling: Add initial objectRoot for existing players who aren't the `local` player.
+                gameModel.players.filter { $0.name != Player.local!.name }.forEach { player in
+                    Task { @MainActor in
+                        let newEntity = await initialObject(for: player)
+                        playerObjectRoots[player.name] = newEntity
+                        rootEntity.addChild(newEntity)
                     }
                 }
-            }
-            
-            do {
-                print("Waiting before starting group activity.")
-                try await Task.sleep(for: .seconds(3))
-            } catch {
-                print("Couldn't sleep.", error)
-            }
-            
-            gameModel.players = newSession.activeParticipants.map { participant in
-                Player(name: String(participant.id.asPlayerName), score: 0, color: .random())
-            }
-            
-            Player.local = gameModel.players.first(where: { $0.name == newSession.localParticipant.id.asPlayerName })
-            
-            // *Session Handling: Add initial objectRoot for existing players who aren't the `local` player.
-            gameModel.players.filter { $0.name != Player.local!.name }.forEach { player in
-                Task { @MainActor in // ** test mainactor
-                    let newEntity = await initialObject(for: player)
-                    playerObjectRoots[player.name] = newEntity
-                    await rootEntity.addChild(newEntity)
-                }
-            }
-            
-            // *Session Handling: Add objectRoot when new player joins
-            Task { @MainActor in
-                for try await updatedPlayerList in newSession.$activeParticipants.values {
-                    
-                    for participant in updatedPlayerList
-                    {
-                        Player.local = gameModel.players.first(where: { $0.name == newSession.localParticipant.id.asPlayerName })
-                        let potentialNewPlayer = Player(name: String(participant.id.asPlayerName), score: 0, color: .random())
+                
+                // *Session Handling: Add objectRoot when new player joins
+                Task { @MainActor in
+                    for try await updatedPlayerList in newSession.$activeParticipants.values {
                         
-                        if !gameModel.players.contains(where: { $0.name == potentialNewPlayer.name })
+                        for participant in updatedPlayerList
                         {
-                            gameModel.players.append(potentialNewPlayer)
+                            Player.local = gameModel.players.first(where: { $0.name == newSession.localParticipant.id.asPlayerName })
+                            let potentialNewPlayer = Player(name: String(participant.id.asPlayerName), id: participant.id, score: 0, color: .random())
                             
-                            Task { @MainActor in
-                                let newEntity = await initialObject(for: potentialNewPlayer)
-                                playerObjectRoots[potentialNewPlayer.name] = newEntity
-                                rootEntity.addChild(newEntity)
+                            if !gameModel.players.contains(where: { $0.name == potentialNewPlayer.name })
+                            {
+                                gameModel.players.append(potentialNewPlayer)
+                                
+                                Task { @MainActor in
+                                    let newEntity = await initialObject(for: potentialNewPlayer)
+                                    playerObjectRoots[potentialNewPlayer.name] = newEntity
+                                    rootEntity.addChild(newEntity)
+                                }
                             }
                         }
                     }
                 }
-            }
-            
-            // *Session Handling: Handle receiving attachments / files from the GroupSession Journal
-            let task = Task {
-                for await images in journal.attachments {
-                    await handleReceiveJournal(images, viewModel: viewModel)
+                
+                // *Session Handling: Handle receiving attachments / files from the GroupSession Journal
+                let task = Task {
+                    for await images in journal.attachments {
+                        Task { @MainActor in
+                            await handleReceiveJournal(images, viewModel: viewModel)
+                        }
+                    }
+                }
+                viewModel.tasks.insert(task)
+                
+                // Send openImmersiveSpace action, so user always opens space by either creating new or inviting
+                viewModel.actionSubject.send(.openImmersiveSpace(()))
+                
+                // Testing: Send new session 1 second after we load immersive space
+                DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + .seconds(2)) {
+                    // *Session Handling: Publish new session to the ViewModel
+                    viewModel.actionSubject.send(.receivedSession(newSession))
                 }
             }
-            viewModel.tasks.insert(task)
-            
-            // *Session Handling: Publish new session to the ViewModel
-            viewModel.actionSubject.send(.receivedSession(newSession))
-            
-            // Send openImmersiveSpace action, so user always opens space by either creating new or inviting
-            viewModel.actionSubject.send(.openImmersiveSpace(()))
         }
     }
     
@@ -238,6 +245,11 @@ extension Multiplayer {
                   playerObjectRoots[sender.source.id.asPlayerName]?.name != newEntity.name // Only load new Entity once
             else { return }
             
+            if let playerColor = gameModel.players.first(where: { $0.id == sender.source.id })?.color.cgColor {
+                let uiColor = UIColor(cgColor: playerColor)
+                newEntity.model?.materials = [SimpleMaterial(color: uiColor, isMetallic: false)]
+            }
+            
             playerObjectRoots[sender.source.id.asPlayerName]?.removeFromParent()
             playerObjectRoots[sender.source.id.asPlayerName] = newEntity
             rootEntity.addChild(newEntity)
@@ -285,8 +297,6 @@ extension Multiplayer {
         handOrigin.addChild(objectIntermediate)
         objectIntermediate.addChild(newObject)
         
-        rootEntity.addChild(handOrigin)
-        
         newObject.generateCollisionShapes(recursive: true)
         newObject.name = "root-\(player.name)"
         
@@ -301,6 +311,7 @@ extension Multiplayer {
     // TEST: is this called when adding our own files?
     
     /// Handle receiving files from other users in the GroupSession
+    @MainActor
     static func handleReceiveJournal(_ attachments: GroupSessionJournal.Attachments.Element, viewModel: ViewModel) async
     {
         // Publish list of ImageDataMessage messages received with UUID

@@ -15,6 +15,7 @@
 		811C181C2AD015D100AE4C37 /* ImmersiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811C181B2AD015D100AE4C37 /* ImmersiveView.swift */; };
 		811C181E2AD0165400AE4C37 /* ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811C181D2AD0165400AE4C37 /* ViewModel.swift */; };
 		811D53A32B0F0A0100F36DD3 /* Utility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811D53A22B0F0A0100F36DD3 /* Utility.swift */; };
+		8159E9202C1CCD38000107DD /* GameManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8159E91F2C1CCD38000107DD /* GameManager.swift */; };
 		8189FE0E2B36A95E00300D36 /* toy.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 8189FE0D2B36A95E00300D36 /* toy.usdz */; };
 		81C562892B13B22D00787A5B /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C562882B13B22D00787A5B /* Extensions.swift */; };
 		81C745122AE41A710010BA63 /* Multiplayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C745112AE41A710010BA63 /* Multiplayer.swift */; };
@@ -24,6 +25,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		810337AD2B9A8E3D00DAF692 /* Joj-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Joj-Info.plist"; sourceTree = "<group>"; };
 		811C18042ACFB8AD00AE4C37 /* Joj.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Joj.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		811C18082ACFB8AE00AE4C37 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		811C180B2ACFB8AE00AE4C37 /* JojApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JojApp.swift; sourceTree = "<group>"; };
@@ -33,6 +35,7 @@
 		811C181B2AD015D100AE4C37 /* ImmersiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImmersiveView.swift; sourceTree = "<group>"; };
 		811C181D2AD0165400AE4C37 /* ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModel.swift; sourceTree = "<group>"; };
 		811D53A22B0F0A0100F36DD3 /* Utility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utility.swift; sourceTree = "<group>"; };
+		8159E91F2C1CCD38000107DD /* GameManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameManager.swift; sourceTree = "<group>"; };
 		8189FE0D2B36A95E00300D36 /* toy.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = toy.usdz; sourceTree = "<group>"; };
 		81C562882B13B22D00787A5B /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		81C745112AE41A710010BA63 /* Multiplayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Multiplayer.swift; sourceTree = "<group>"; };
@@ -57,6 +60,7 @@
 		811C17FB2ACFB8AD00AE4C37 = {
 			isa = PBXGroup;
 			children = (
+				810337AD2B9A8E3D00DAF692 /* Joj-Info.plist */,
 				811C18062ACFB8AD00AE4C37 /* GroupSessionDemo */,
 				811C18072ACFB8AE00AE4C37 /* Packages */,
 				811C18052ACFB8AD00AE4C37 /* Products */,
@@ -79,6 +83,7 @@
 				811C180B2ACFB8AE00AE4C37 /* JojApp.swift */,
 				811C180D2ACFB8AE00AE4C37 /* ContentView.swift */,
 				811C181B2AD015D100AE4C37 /* ImmersiveView.swift */,
+				8159E91F2C1CCD38000107DD /* GameManager.swift */,
 				811C181D2AD0165400AE4C37 /* ViewModel.swift */,
 				81C745152AE41D4C0010BA63 /* GameModel.swift */,
 				81C745112AE41A710010BA63 /* Multiplayer.swift */,
@@ -196,6 +201,7 @@
 				811C181C2AD015D100AE4C37 /* ImmersiveView.swift in Sources */,
 				81C745122AE41A710010BA63 /* Multiplayer.swift in Sources */,
 				81C562892B13B22D00787A5B /* Extensions.swift in Sources */,
+				8159E9202C1CCD38000107DD /* GameManager.swift in Sources */,
 				81C745192AE4E8630010BA63 /* PlaceableObjects.swift in Sources */,
 				81C745142AE41B910010BA63 /* Player.swift in Sources */,
 				81C745162AE41D4C0010BA63 /* GameModel.swift in Sources */,
@@ -332,11 +338,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = GroupSessionDemo/GroupSessionDemo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_ASSET_PATHS = "\"GroupSessionDemo/Preview Content\"";
 				DEVELOPMENT_TEAM = NWR2UZ4V67;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Joj-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -359,11 +366,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = GroupSessionDemo/GroupSessionDemo.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_ASSET_PATHS = "\"GroupSessionDemo/Preview Content\"";
 				DEVELOPMENT_TEAM = NWR2UZ4V67;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Joj-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
